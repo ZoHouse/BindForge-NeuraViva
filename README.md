@@ -1,119 +1,47 @@
-# AI-Enhanced Molecular Docking Predictions
+# BindForge
 
-This project aims to enhance molecular docking predictions using AI/ML techniques.
+An AI-powered drug discovery platform that predicts and optimizes irreversible covalent inhibitors for MK2 with precision, speed, and blockchain-backed scalability.
 
+## Description
 
-# Steps for Building the First MVP of MK2 Covalent Inhibitor Prediction Tool
+BindForge is an intelligent platform that revolutionizes covalent drug design by combining AI-driven molecular docking with blockchain-powered scalability. Specializing in irreversible inhibitors for MAPKAPK2 (MK2), it enhances binding predictions, optimizes warhead chemistry, and validates cysteine-targeted covalent bonds. Using AutoDock Vina/Glide and ML-based refinement, it provides real-time feedback for in-silico molecular optimization before lab synthesis. Built on Solana's Eliza framework, BindForge ensures secure, auditable, and high-throughput simulations—accelerating NeuraViva's R&D pipeline. From predictive modeling to blockchain-backed drug discovery, BindForge bridges computational precision and pharmaceutical innovation, delivering faster, smarter covalent therapies.
 
-## Step 1: Basic Environment Setup
+## Key Features
 
-### Install Python 3.9+ with essential packages:
+- **AI-Augmented Covalent Docking**: Precision targeting of specific cysteine residues
+- **Cysteine Warhead Optimization**: Smart selection and design of reactive groups
+- **Real-Time In-Silico Feedback**: Immediate guidance for molecular refinement
+- **Solana-Powered Scalability**: Blockchain-based distribution of computational tasks
+- **End-to-End Inhibitor Design**: Complete workflow from concept to validated candidate
 
-* **RDKit** for molecular handling
-* **NumPy** and **Pandas** for data processing
-* **PyTorch** (lightweight installation) for simple ML model
+## Project Setup
 
-### Install AutoDock Vina and configure it in your environment
+### Directory Structure
+```
+BindForge/
+├── frontend/       # React-based user interface
+├── backend/        # FastAPI-based API server
+├── .venv/          # Python virtual environment
+└── README.md       # Project documentation
+```
 
-## Step 2: Protein Preparation
+### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-1. Download a single high-quality MK2 structure (e.g., PDB: 3M2W)
-2. Clean the structure:
-   * Remove water molecules and ligands
-   * Add hydrogens using OpenBabel
-   * Identify the target cysteine residue(s)
-3. Save as PDBQT format for AutoDock Vina
+### Backend Setup
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
-## Step 3: Implement Basic Docking Pipeline
+# Install dependencies
+cd backend
+pip install -r requirements.txt
 
-### Create a molecule input handler:
-* Accept SMILES or SDF input
-* Convert to 3D structures
-* Generate PDBQT files for docking
-
-### Set up docking configuration:
-* Define grid box around target cysteine
-* Configure basic Vina parameters (exhaustiveness=8)
-* Create a simple docking script
-
-### Build results parser:
-* Extract binding poses and scores
-* Calculate distance between warheads and cysteine
-
-## Step 4: Simple Covalent Prediction
-
-### Implement basic warhead detection:
-* Identify common electrophilic groups (acrylamides, chloroacetamides)
-* Tag reactive atoms in molecules
-
-### Create distance-based scoring:
-* Calculate distance between warhead and cysteine sulfur
-* Apply simple scoring function: `score = docking_score × (1/distance_factor)`
-
-### Implement basic classifier:
-* If distance < 4Å and warhead present: "Likely covalent binder"
-* Else: "Unlikely covalent binder"
-
-## Step 5: Minimal Test Dataset
-
-### Collect 10-20 known molecules:
-* 5-10 known MK2 covalent inhibitors from literature
-* 5-10 non-covalent binders or non-binders
-* Prepare structures in SMILES format
-
-### Create validation script:
-* Run all test molecules through pipeline
-* Compare predictions with known activity
-* Calculate basic accuracy metrics
-
-## Step 6: Simple User Interface
-
-### Build minimal Flask web app:
-* Create input form for SMILES or structure drawing
-* Add submit button to trigger docking process
-* Design basic results page
-
-### Implement results visualization:
-* Use 3Dmol.js for interactive 3D visualization
-* Highlight cysteine residue and potential warhead
-* Display distance measurements and scores
-
-## Step 7: Basic Feedback Module
-
-### Implement simple rule-based suggestions:
-* If warhead too far: "Consider extending linker"
-* If poor docking score: "Consider adding H-bond donors/acceptors"
-* If good position but wrong warhead: "Consider alternative warhead"
-
-### Add structure modification examples:
-* Provide 2-3 template modifications based on rules
-* Show modified structures as SMILES
-
-## Step 8: Integration and Testing
-
-### Connect all components in a workflow:
-* Input → Docking → Covalent Assessment → Results Display
-
-### Test with validation set:
-* Process all test molecules
-* Verify results are consistent
-* Document accuracy on known compounds
-
-## Step 9: MVP Demo Preparation
-
-### Prepare demo script:
-* Select 3-5 diverse examples to showcase
-* Document expected outcomes
-* Prepare explanations for each step
-
-### Create simple documentation:
-* System requirements
-* Installation instructions
-* Basic usage guide
-
-### Package for sharing:
-* Create requirements.txt
-* Prepare Docker container (optional)
-* Include test molecules and protein structure
-
-This stripped-down approach focuses only on the essential components needed to demonstrate the concept, with minimal ML components and a focus on the core functionality of predicting covalent binding to MK2.
+# Run the backend server
+uvicorn main:app --reload
+```
