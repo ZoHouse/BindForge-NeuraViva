@@ -2,6 +2,8 @@
 
 An AI-powered drug discovery platform that predicts and optimizes irreversible covalent inhibitors for MK2 with precision, speed, and blockchain-backed scalability.
 
+https://github.com/user-attachments/assets/2d6d4510-296d-4890-b262-f7c679458c74
+
 ## Description
 
 BindForge is an intelligent platform that revolutionizes covalent drug design by combining AI-driven molecular docking with blockchain-powered scalability. Specializing in irreversible inhibitors for MAPKAPK2 (MK2), it enhances binding predictions, optimizes warhead chemistry, and validates cysteine-targeted covalent bonds. Using AutoDock Vina/Glide and ML-based refinement, it provides real-time feedback for in-silico molecular optimization before lab synthesis. Built on Solana's Eliza framework, BindForge ensures secure, auditable, and high-throughput simulations—accelerating NeuraViva's R&D pipeline. From predictive modeling to blockchain-backed drug discovery, BindForge bridges computational precision and pharmaceutical innovation, delivering faster, smarter covalent therapies.
