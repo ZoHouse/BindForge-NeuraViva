@@ -4,6 +4,10 @@ import {
   Database,
   FlaskRoundIcon as Flask,
   Microscope,
+  ArrowLeftRight,
+  CheckCircle,
+  Settings,
+  LineChart,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../components/ui/button";
@@ -55,9 +59,15 @@ export default function Home() {
             >
               Test Set
             </Link>
+            <Link
+              href="/workflow"
+              className="text-sm font-medium text-teal-600 hover:text-teal-700"
+            >
+              Workflow
+            </Link>
           </nav>
           <Button variant="outline" className="hidden md:flex">
-            Try Now
+            <Link href="/workflow">Try Now</Link>
           </Button>
           <Button variant="outline" size="icon" className="md:hidden">
             <span className="sr-only">Toggle menu</span>
@@ -97,18 +107,114 @@ export default function Home() {
                 prediction of small molecule inhibitors to target proteins.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 mt-6 justify-center">
-                <Button className="bg-teal-600 hover:bg-teal-700">
-                  Get Started
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button className="bg-teal-600 hover:bg-teal-700" asChild>
+                  <Link href="/workflow">
+                    Start Docking Workflow
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
                 </Button>
-                <Button variant="outline">Contact Us</Button>
+                <Button variant="outline">View Documentation</Button>
               </div>
             </div>
           </div>
         </section>
 
+        {/* Workflow Section - NEW */}
+        <section id="workflow" className="w-full py-12 md:py-24 bg-white">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-10">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-teal-100 px-3 py-1 text-sm text-teal-700">
+                  New Feature
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+                  Intuitive Docking Workflow
+                </h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Our step-by-step workflow guides you through the entire
+                  process from protein selection to results analysis.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <Card className="border-2 border-teal-100 hover:border-teal-200 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="bg-teal-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-xl font-bold text-teal-700">1</span>
+                  </div>
+                  <CardTitle>Protein Structure</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500">
+                    Upload or search for protein structures with automatic
+                    processing and cysteine identification.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-teal-100 hover:border-teal-200 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="bg-teal-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-xl font-bold text-teal-700">2</span>
+                  </div>
+                  <CardTitle>Molecule Input</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500">
+                    Add molecules via SMILES notation or choose from our curated
+                    libraries of potential inhibitors.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-teal-100 hover:border-teal-200 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="bg-teal-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-xl font-bold text-teal-700">3</span>
+                  </div>
+                  <CardTitle>Docking Setup</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500">
+                    Configure binding site parameters and select advanced
+                    docking algorithms for precise simulation.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-teal-100 hover:border-teal-200 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="bg-teal-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-xl font-bold text-teal-700">4</span>
+                  </div>
+                  <CardTitle>Results Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500">
+                    Visualize binding interactions and get detailed reports on
+                    covalent binding predictions.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex justify-center mt-10">
+              <Button className="bg-teal-600 hover:bg-teal-700" asChild>
+                <Link href="/workflow">
+                  Try the Workflow
+                  <ArrowLeftRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Features Section */}
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32">
+        <section
+          id="features"
+          className="w-full py-12 md:py-24 lg:py-32 bg-gray-50"
+        >
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
@@ -182,31 +288,37 @@ export default function Home() {
                 Technology
               </div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
-                Powered by the Eliza Framework
+                Blockchain-Powered Data Storage
               </h2>
               <p className="max-w-[600px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mt-4">
-                Our solution leverages the Eliza framework's capabilities on
-                Solana to ensure scalability and efficiency in computational
-                drug discovery.
+                Our platform stores all docking reports and analysis results on the Solana blockchain, 
+                ensuring transparency, immutability, and security for your research data.
               </p>
               <ul className="space-y-2 mt-6">
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-teal-500"></div>
-                  <span>High-throughput molecular simulations</span>
+                  <span>Immutable record of all molecular simulations</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-teal-500"></div>
-                  <span>Secure data handling for proprietary compounds</span>
+                  <span>Secure, verifiable research data with cryptographic proof</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-teal-500"></div>
-                  <span>Accelerated research and development workflows</span>
+                  <span>Decentralized access to your research findings</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-teal-500"></div>
+                  <span>Permanent storage that's tamper-proof and transparent</span>
                 </li>
               </ul>
-              <div>
-                <Button variant="outline" className="mt-6">
+              <div className="flex gap-4 mt-6">
+                <Button variant="outline">
                   Technical Whitepaper
                   <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button className="bg-teal-600 hover:bg-teal-700" asChild>
+                  <Link href="/workflow">Try the Workflow</Link>
                 </Button>
               </div>
             </div>
@@ -229,7 +341,7 @@ export default function Home() {
                   discovery.
                 </p>
               </div>
-              <div className="w-full max-w-sm space-y-2">
+              <div className="w-full max-w-md space-y-4">
                 <form className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
                   <input
                     className="flex h-10 w-full rounded-md border border-teal-700 bg-teal-800 px-3 py-2 text-sm placeholder:text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -240,6 +352,9 @@ export default function Home() {
                     Subscribe
                   </Button>
                 </form>
+                <p className="text-teal-200 text-sm">
+                  Get early access to our workflow and research tools
+                </p>
               </div>
             </div>
           </div>
@@ -284,6 +399,12 @@ export default function Home() {
                 className="text-sm text-gray-500 hover:text-teal-600"
               >
                 Test Set
+              </Link>
+              <Link
+                href="/workflow"
+                className="text-sm text-gray-500 hover:text-teal-600"
+              >
+                Workflow
               </Link>
             </div>
             <p className="text-sm text-gray-500 mt-4 md:mt-0">

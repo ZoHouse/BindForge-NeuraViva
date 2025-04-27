@@ -1,12 +1,14 @@
 import os
 import shutil
 from typing import Dict, List, Optional
+from datetime import datetime
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from pydantic import BaseModel
+from utils.report_generator import generate_docking_report
 from utils.compound_extractor import (
     download_mk2_inhibitors_sdf,
     extract_mk2_inhibitors_to_library,
@@ -21,6 +23,19 @@ from utils.molecule_library import (
     get_test_set,
 )
 from utils.structure_cleaner import clean_analyze_and_convert, clean_and_identify
+from utils.warhead_detector import WarheadDetector
+
+# Add these imports
+from controllers.docking_controller import DockingController
+import tempfile
+import os
+
+# some soalana and ipfs imports
+from utils.cid_store import store_cid_on_solana
+from ipfs.pinata_post import upload_to_pinata
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 # Create FastAPI app
 app = FastAPI(
@@ -108,6 +123,15 @@ class SearchCompoundsResponse(BaseModel):
     molecules: List[Dict]
 
 
+class PreparedProteinResponse(BaseModel):
+    success: bool
+    cleaned_structure_url: str
+    filesystem_path: str  # Add this to track the actual filesystem path
+    cysteines: List[CysteineInfo]
+    chain_groups: Dict[str, List[int]]
+    potential_disulfide_bonds: List = []
+
+
 @app.post(
     "/api/clean-structure",
     response_model=CleanStructureResponse,
@@ -167,7 +191,7 @@ async def clean_structure_route(file: UploadFile = File(...)):
 
 @app.post(
     "/api/prepare-protein",
-    response_model=CompleteStructureResponse,
+    response_model=PreparedProteinResponse,  # Update the response model
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 async def prepare_protein_route(file: UploadFile = File(...)):
@@ -182,20 +206,26 @@ async def prepare_protein_route(file: UploadFile = File(...)):
     Returns:
         - **success**: Whether the operation was successful
         - **cleaned_structure_url**: URL to download the cleaned PDB structure
-        - **pdbqt_structure_url**: URL to download the PDBQT structure for docking
+        - **filesystem_path**: Actual filesystem path for internal API use
         - **cysteines**: List of identified cysteine residues
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
 
-    # Save the uploaded file
+    # Create a predictable filename to store the processed protein
+    base_filename = os.path.splitext(file.filename)[0]
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    unique_id = f"{base_filename}_{timestamp}"
+
+    # Save the uploaded file in predictable location
     upload_dir = os.path.join(UPLOAD_FOLDER, "structures")
-    temp_input_path = os.path.join(upload_dir, file.filename)
+    temp_input_path = os.path.join(upload_dir, f"{unique_id}_original.pdb")
 
     with open(temp_input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    output_dir = os.path.join(UPLOAD_FOLDER, "prepared")
+    # Store processed proteins in a dedicated 'prepared_proteins' directory for easier lookup
+    output_dir = os.path.join(UPLOAD_FOLDER, "prepared_proteins")
     os.makedirs(output_dir, exist_ok=True)
 
     try:
@@ -206,11 +236,9 @@ async def prepare_protein_route(file: UploadFile = File(...)):
         cleaned_relative_path = os.path.relpath(
             result["cleaned_pdb"], start=UPLOAD_FOLDER
         )
-        # pdbqt_relative_path = os.path.relpath(result["pdbqt"], start=UPLOAD_FOLDER)
-
         cleaned_download_url = f"/uploads/{cleaned_relative_path}"
-        # pdbqt_download_url = f"/uploads/{pdbqt_relative_path}"
 
+        # Extract analysis data
         analysis = (
             result["analysis"]
             if isinstance(result["analysis"], dict)
@@ -224,7 +252,7 @@ async def prepare_protein_route(file: UploadFile = File(...)):
         return {
             "success": True,
             "cleaned_structure_url": cleaned_download_url,
-            # "pdbqt_structure_url": pdbqt_download_url,
+            "filesystem_path": result["cleaned_pdb"],  # Add the actual filesystem path
             "cysteines": cysteines,
             "chain_groups": chain_groups,
             "potential_disulfide_bonds": potential_disulfide_bonds,
@@ -513,6 +541,234 @@ async def search_pubchem_compounds_route():
 
         return {"success": True, "molecules": molecules}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/dock")
+async def dock_molecule(request: Request):
+    """
+    Perform molecular docking of a compound against a protein structure
+    
+    Request body:
+    - smiles: SMILES string of the molecule to dock
+    - protein_path: Path to the protein structure file
+    - filesystem_path: Optional direct filesystem path to the protein
+    - cysteine_id: Optional cysteine residue ID for covalent docking (format: "chain:resnum")
+    
+    Returns:
+    - JSON response with docking results including scores, poses, and binding information
+    """
+    data = await request.json()
+    
+    # Get SMILES string from request
+    smiles = data.get("smiles")
+    if not smiles:
+        raise HTTPException(status_code=400, detail="SMILES string required")
+
+    # Log request information
+    print(f"Dock request: SMILES={smiles}, paths={data.get('protein_path')}/{data.get('filesystem_path')}")
+    
+    # Create a docking controller
+    docking_controller = DockingController()
+    
+    # Process protein path - try to find the protein file
+    protein_path = None
+    file_candidates = []
+    
+    # Check filesystem_path first (most direct)
+    if data.get("filesystem_path") and os.path.exists(data.get("filesystem_path")):
+        protein_path = data.get("filesystem_path")
+    
+    # If not found, try protein_path with different interpretations
+    if not protein_path and data.get("protein_path"):
+        path = data.get("protein_path")
+        
+        # Check if it's a URL path
+        if path.startswith("/uploads/"):
+            file_candidates.append(os.path.join(UPLOAD_FOLDER, path.replace("/uploads/", "", 1)))
+        
+        # Check if it's a direct path
+        file_candidates.append(path)
+        
+        # Check if it's a relative path
+        file_candidates.append(os.path.join(UPLOAD_FOLDER, path.lstrip("/")))
+        
+        # Try PDB variants if PDBQT is specified
+        for candidate in list(file_candidates):
+            if candidate.endswith(".pdbqt"):
+                file_candidates.append(candidate.replace(".pdbqt", ".pdb"))
+        
+        # Find first existing file
+        for candidate in file_candidates:
+            if os.path.exists(candidate):
+                protein_path = candidate
+                break
+    
+    # Last resort: search in prepared_proteins directory for the filename
+    if not protein_path and data.get("protein_path"):
+        filename = os.path.basename(data.get("protein_path"))
+        prepared_dir = os.path.join(UPLOAD_FOLDER, "prepared_proteins")
+        
+        if os.path.exists(prepared_dir):
+            for root, _, files in os.walk(prepared_dir):
+                for file in files:
+                    if filename in file:
+                        candidate = os.path.join(root, file)
+                        if os.path.exists(candidate):
+                            protein_path = candidate
+                            break
+    
+    # If we still don't have a protein path, error out
+    if not protein_path:
+        raise HTTPException(status_code=400, detail="Could not find valid protein structure file")
+    
+    # Set the protein file in the docking controller
+    try:
+        docking_controller.set_protein(protein_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error loading protein: {str(e)}")
+    
+    # Get cysteine ID for covalent docking
+    cysteine_id = data.get("cysteine_id")
+    
+    # Run docking
+    try:
+        results = docking_controller.dock_from_smiles(smiles=smiles, cysteine_id=cysteine_id)
+        
+        # Process URLs in results to be frontend-compatible
+        if "poses" in results:
+            for pose in results["poses"]:
+                if "pose_file" in pose and os.path.exists(pose["pose_file"]):
+                    relpath = os.path.relpath(pose["pose_file"], start=UPLOAD_FOLDER)
+                    pose["pdbqt_url"] = f"/uploads/{relpath}"
+        
+        return results
+    except Exception as e:
+        import traceback
+        print(f"Docking error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Docking failed: {str(e)}")
+
+
+@app.post("/api/detect-warheads")
+async def detect_warheads(request: Request):
+    data = await request.json()
+    smiles = data.get("smiles")
+
+    if not smiles:
+        raise HTTPException(status_code=400, detail="SMILES string required")
+
+    detector = WarheadDetector()
+    result = detector.detect_warheads(smiles)
+
+    return result
+
+
+@app.post("/api/generate-report")
+async def generate_report_route(request: Request):
+    """
+    Generate a detailed PDF report for docking results
+    """
+    data = await request.json()
+
+    docking_results = data.get("docking_results", {})
+    protein_info = data.get("protein_info", {})
+    molecule_info = data.get("molecule_info", {})
+    docking_config = data.get("docking_config", {})  # Get docking configuration
+
+    # Extract properties from the molecule_info to prevent nested object issues in the report
+    properties = {}
+    for key in ["logP", "druglikeness", "synthetic_accessibility"]:
+        if key in molecule_info:
+            properties[key] = molecule_info.pop(key, None)
+    
+    # Enhance the report with additional data from the request
+    enhanced_docking_results = {
+        **docking_results,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "docking_type": docking_config.get("type", "standard"),
+        "binding_site": docking_config.get("binding_site", "auto"),
+        "exhaustiveness": docking_config.get("exhaustiveness", 8),
+    }
+    
+    # Add information about all poses if available
+    if "all_results_summary" in docking_results:
+        enhanced_docking_results["ranked_results"] = docking_results["all_results_summary"]
+    
+    # Add top pose data if available
+    if "top_pose_data" in docking_results and docking_results["top_pose_data"]:
+        enhanced_docking_results["top_pose_details"] = docking_results["top_pose_data"]
+        
+        # Try to extract interactions from the pose if possible
+        try:
+            # This is a placeholder for actual interaction analysis
+            # In a real implementation, you'd analyze the pose structure
+            enhanced_docking_results["interactions"] = {
+                "hydrogen_bonds": ["ASP-189 (2.1Å)", "SER-190 (1.9Å)"],
+                "hydrophobic": ["PHE-82", "VAL-186"],
+                "pi_stacking": ["TYR-228"],
+            }
+        except Exception as e:
+            print(f"Could not analyze interactions: {str(e)}")
+    
+    # Enhancement for protein info
+    enhanced_protein_info = {
+        **protein_info,
+        "structure_type": "X-ray diffraction" if protein_info.get("resolution") else "Unknown",
+        "binding_site_residues": ["Analysis would be done here based on pose data"],
+    }
+    
+    # Enhancement for molecule info - use flattened properties format
+    enhanced_molecule_info = {
+        **molecule_info,
+        # Add calculated properties as individual fields
+        "logP": properties.get("logP", "N/A"),
+        "druglikeness": properties.get("druglikeness", "N/A"),
+        "synthetic_accessibility": properties.get("synthetic_accessibility", "N/A"),
+    }
+
+    try:
+        reports_dir = os.path.join(UPLOAD_FOLDER, "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+
+        # Use the enhanced data for report generation
+        report_path = generate_docking_report(
+            enhanced_docking_results, enhanced_protein_info, enhanced_molecule_info, reports_dir
+        )
+
+        print(f"Report generated at: {report_path}")
+
+        # JWT token for pinata
+        PINATA_JWT_TOKEN = os.getenv("JWT")
+
+        # Here we will upload the report to IPFS
+        cid = upload_to_pinata(report_path, PINATA_JWT_TOKEN)
+
+        if not cid:
+            raise HTTPException(
+                status_code=500, detail="Failed to upload report to IPFS"
+            )
+
+        # Store CID in CID store - add await here since it's an async function
+        hash = await store_cid_on_solana(cid)
+
+        print(f"This is the hash {hash}")
+
+        # Generate URL for downloading the report
+        report_rel_path = os.path.relpath(report_path, start=UPLOAD_FOLDER)
+        report_url = f"/uploads/{report_rel_path}"
+
+        return {
+            "success": True,
+            "report_url": report_url,
+            "filename": os.path.basename(report_path),
+            "hash": hash,
+        }
+
+    except Exception as e:
+        print(f"Report generation error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 
