@@ -2,7 +2,7 @@
 
 An AI-powered drug discovery platform that predicts and optimizes irreversible covalent inhibitors for MK2 with precision, speed, and blockchain-backed scalability.
 
-https://github.com/user-attachments/assets/2d6d4510-296d-4890-b262-f7c679458c74
+https://github.com/user-attachments/assets/40c4266c-5430-45d4-a579-94b1a67ebfdb
 
 ## Description
 
